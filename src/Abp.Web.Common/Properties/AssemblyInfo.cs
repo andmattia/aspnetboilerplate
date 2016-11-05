@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-using Abp;
 
 [assembly: AssemblyTitle("ASP.NET Boilerplate - Web Common")]
 [assembly: AssemblyDescription("ASP.NET Boilerplate - Web Common Classes")]
@@ -17,6 +16,7 @@ using Abp;
 [assembly: AssemblyCulture("")]
 
 [assembly: InternalsVisibleTo("Abp.AspNetCore")]
+[assembly: InternalsVisibleTo("Abp.Web.Common.Tests")]
 [assembly: InternalsVisibleTo("Abp.Web.Tests")]
 [assembly: InternalsVisibleTo("Abp.Web.Mvc")]
 
@@ -38,5 +38,5 @@ using Abp;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion(AbpConsts.CurrentVersion)]
-[assembly: AssemblyFileVersion(AbpConsts.CurrentVersion)]
+
+

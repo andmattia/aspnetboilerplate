@@ -1,38 +1,15 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Abp.Collections;
 using Abp.EntityFrameworkCore.Tests.Domain;
-using Abp.Modules;
+using Abp.EntityFrameworkCore.Tests.Ef;
 using Abp.TestBase;
-using Castle.MicroKernel.Registration;
-using Castle.Windsor.MsDependencyInjection;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Abp.EntityFrameworkCore.Tests
 {
-    public abstract class EntityFrameworkCoreModuleTestBase : AbpIntegratedTestBase
+    public abstract class EntityFrameworkCoreModuleTestBase : AbpIntegratedTestBase<EntityFrameworkCoreTestModule>
     {
         protected EntityFrameworkCoreModuleTestBase()
         {
-            var services = new ServiceCollection()
-                .AddEntityFrameworkInMemoryDatabase();
-
-            var serviceProvider = WindsorRegistrationHelper.CreateServiceProvider(
-                LocalIocManager.IocContainer,
-                services
-            );
-
-            var builder = new DbContextOptionsBuilder<BloggingDbContext>();
-            builder.UseInMemoryDatabase()
-                   .UseInternalServiceProvider(serviceProvider);
-
-            var options = builder.Options;
-
-            LocalIocManager.IocContainer.Register(
-                Component.For<DbContextOptions<BloggingDbContext>>().Instance(options).LifestyleSingleton()
-            );
-
             CreateInitialData();
         }
 
@@ -41,15 +18,15 @@ namespace Abp.EntityFrameworkCore.Tests
             UsingDbContext(
                 context =>
                 {
-                    var blog1 = new Blog() {Name = "test-blog-1", Url = "http://testblog1.myblogs.com"};
+                    var blog1 = new Blog("test-blog-1", "http://testblog1.myblogs.com");
+
                     context.Blogs.Add(blog1);
+
+                    var post1 = new Post {Blog = blog1, Title = "test-post-1-title", Body = "test-post-1-body"};
+                    var post2 = new Post {Blog = blog1, Title = "test-post-2-title", Body = "test-post-2-body"};
+
+                    context.Posts.AddRange(post1, post2);
                 });
-        }
-        
-        protected override void AddModules(ITypeList<AbpModule> modules)
-        {
-            base.AddModules(modules);
-            modules.Add<EntityFrameworkCoreTestModule>();
         }
 
         public void UsingDbContext(Action<BloggingDbContext> action)

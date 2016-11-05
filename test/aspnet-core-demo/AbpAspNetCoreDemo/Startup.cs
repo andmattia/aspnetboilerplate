@@ -1,29 +1,19 @@
 ﻿using System;
 using Abp.AspNetCore;
-using Abp.AspNetCore.Mvc.Filters;
-using AbpAspNetCoreDemo.EntityFrameworkCore;
+using Abp.Castle.Logging.Log4Net;
 using Castle.Facilities.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
 
 namespace AbpAspNetCoreDemo
 {
-    public class Startup : AbpStartup
+    public class Startup
     {
-        public IConfigurationRoot Configuration { get; }
-
         public Startup(IHostingEnvironment env)
-            : base(env)
         {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
@@ -33,56 +23,54 @@ namespace AbpAspNetCoreDemo
             Configuration = builder.Build();
         }
 
-        protected override void InitializeAbp()
+        public IConfigurationRoot Configuration { get; }
+
+        // This method gets called by the runtime. Use this method to add services to the container.
+        public IServiceProvider ConfigureServices(IServiceCollection services)
         {
-            AbpBootstrapper.IocManager.IocContainer.AddFacility<LoggingFacility>(
-                f => f.UseLog4Net().WithConfig("log4net.config")
-                );
+            services.AddSingleton(Configuration);
 
-            base.InitializeAbp();
-        }
-
-        public override IServiceProvider ConfigureServices(IServiceCollection services)
-        {
-            //See https://github.com/aspnet/Mvc/issues/3936 to know why we added these services.
-            services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-            services.TryAddSingleton<IActionContextAccessor, ActionContextAccessor>();
-
-            services.AddDbContext<MyDbContext>(
-                options => options.UseSqlServer(Configuration.GetConnectionString("Default"))
-            );
-
-            // Add framework services.
+            //Add framework services
             services.AddMvc(options =>
             {
-                options.Filters.Add(typeof(AbpAuthorizationFilter));
-                options.Filters.Add(typeof(AbpExeptionFilter));
-                options.Filters.Add(typeof(AbpResultFilter));
+                options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+            });
 
-                //TODO: InputFotmatter!
-
-                options.OutputFormatters.Add(new JsonOutputFormatter(
-                    new JsonSerializerSettings
-                    {
-                        ContractResolver = new CamelCasePropertyNamesContractResolver()
-                    }));
-
-            }).AddControllersAsServices();
-
-            return base.ConfigureServices(services);
+            //Configure Abp and Dependency Injection. Should be called last.
+            return services.AddAbp<AbpAspNetCoreDemoModule>(options =>
+            {
+                //Configure Log4Net logging
+                options.IocManager.IocContainer.AddFacility<LoggingFacility>(
+                    f => f.UseAbpLog4Net().WithConfig("log4net.config")
+                );
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public override void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-            base.Configure(app, env, loggerFactory);
+            app.UseAbp(); //Initializes ABP framework. Should be called first.
 
             loggerFactory.AddConsole(Configuration.GetSection("Logging"));
             loggerFactory.AddDebug();
 
-            app.UseMvc(options =>
+            if (env.IsDevelopment())
             {
-                
+                app.UseDeveloperExceptionPage();
+                app.UseBrowserLink();
+            }
+            else
+            {
+                app.UseExceptionHandler("/Home/Error");
+            }
+
+            app.UseStaticFiles();
+
+            app.UseMvc(routes =>
+            {
+                routes.MapRoute(
+                    name: "default",
+                    template: "{controller=Home}/{action=Index}/{id?}");
             });
         }
     }

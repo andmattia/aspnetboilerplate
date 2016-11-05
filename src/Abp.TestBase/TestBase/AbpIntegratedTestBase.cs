@@ -1,9 +1,7 @@
 ﻿using System;
-using Abp.Collections;
 using Abp.Dependency;
 using Abp.Modules;
 using Abp.Runtime.Session;
-using Abp.TestBase.Modules;
 using Abp.TestBase.Runtime.Session;
 
 namespace Abp.TestBase
@@ -11,40 +9,41 @@ namespace Abp.TestBase
     /// <summary>
     /// This is the base class for all tests integrated to ABP.
     /// </summary>
-    public abstract class AbpIntegratedTestBase : IDisposable
+    public abstract class AbpIntegratedTestBase<TStartupModule> : IDisposable 
+        where TStartupModule : AbpModule
     {
         /// <summary>
-        /// A reference to the <see cref="IIocManager"/> used for this test.
+        /// Local <see cref="IIocManager"/> used for this test.
         /// </summary>
-        protected IIocManager LocalIocManager { get; private set; }
+        protected IIocManager LocalIocManager { get; }
+
+        protected AbpBootstrapper AbpBootstrapper { get; }
 
         /// <summary>
         /// Gets Session object. Can be used to change current user and tenant in tests.
         /// </summary>
         protected TestAbpSession AbpSession { get; private set; }
 
-        private readonly AbpBootstrapper _bootstrapper;
-
-        protected AbpIntegratedTestBase()
+        protected AbpIntegratedTestBase(bool initializeAbp = true)
         {
             LocalIocManager = new IocManager();
+            AbpBootstrapper = AbpBootstrapper.Create<TStartupModule>(LocalIocManager);
 
-            LocalIocManager.Register<IModuleFinder, TestModuleFinder>();
+            if (initializeAbp)
+            {
+                InitializeAbp();
+            }
+        }
+
+        protected void InitializeAbp()
+        {
             LocalIocManager.Register<IAbpSession, TestAbpSession>();
-
-            AddModules(LocalIocManager.Resolve<TestModuleFinder>().Modules);
 
             PreInitialize();
 
-            _bootstrapper = new AbpBootstrapper(LocalIocManager);
-            _bootstrapper.Initialize();
+            AbpBootstrapper.Initialize();
 
             AbpSession = LocalIocManager.Resolve<TestAbpSession>();
-        }
-
-        protected virtual void AddModules(ITypeList<AbpModule> modules)
-        {
-            modules.Add<TestBaseModule>();
         }
 
         /// <summary>
@@ -57,7 +56,7 @@ namespace Abp.TestBase
 
         public virtual void Dispose()
         {
-            _bootstrapper.Dispose();
+            AbpBootstrapper.Dispose();
             LocalIocManager.Dispose();
         }
 
