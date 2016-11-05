@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Abp.Collections.Extensions;
 using Abp.Dependency;
+using Abp.EntityFramework;
 using Abp.EntityFrameworkCore.Repositories;
 using Abp.EntityFrameworkCore.Uow;
 using Abp.Modules;
@@ -59,6 +60,7 @@ namespace Abp.EntityFrameworkCore
             {
                 foreach (var dbContextType in dbContextTypes)
                 {
+                    Logger.Debug("Registering DbContext: " + dbContextType.AssemblyQualifiedName);
                     repositoryRegistrar.Object.RegisterForDbContext(dbContextType, IocManager);
                 }
             }

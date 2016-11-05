@@ -3,6 +3,7 @@
 
   "dependencies": {
     "Abp": "0.9.3.2-*",
+    "Abp.EntityFramework.Common": "0.9.3.2-*",
     "EntityFramework": "6.1.3",
     "EntityFramework.DynamicFilters": "1.4.10.2"
   },

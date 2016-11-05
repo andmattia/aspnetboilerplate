@@ -1,6 +1,10 @@
 ﻿using System;
 using Abp.AspNetCore;
-using Abp.AspNetCore.Mvc.Filters;
+using Abp.AspNetCore.Mvc.Auditing;
+using Abp.AspNetCore.Mvc.Authorization;
+using Abp.AspNetCore.Mvc.ExceptionHandling;
+using Abp.AspNetCore.Mvc.Results;
+using Abp.AspNetCore.Mvc.Validation;
 using AbpAspNetCoreDemo.EntityFrameworkCore;
 using Castle.Facilities.Logging;
 using Microsoft.AspNetCore.Builder;
@@ -55,11 +59,11 @@ namespace AbpAspNetCoreDemo
             // Add framework services.
             services.AddMvc(options =>
             {
-                options.Filters.Add(typeof(AbpAuthorizationFilter));
-                options.Filters.Add(typeof(AbpExeptionFilter));
-                options.Filters.Add(typeof(AbpResultFilter));
-
-                //TODO: InputFotmatter!
+                options.Filters.AddService(typeof(AbpAuthorizationFilter));
+                options.Filters.AddService(typeof(AbpAuditActionFilter));
+                options.Filters.AddService(typeof(AbpValidationActionFilter));
+                options.Filters.AddService(typeof(AbpExceptionFilter));
+                options.Filters.AddService(typeof(AbpResultFilter));
 
                 options.OutputFormatters.Add(new JsonOutputFormatter(
                     new JsonSerializerSettings
@@ -80,9 +84,19 @@ namespace AbpAspNetCoreDemo
             loggerFactory.AddConsole(Configuration.GetSection("Logging"));
             loggerFactory.AddDebug();
 
-            app.UseMvc(options =>
+            if (env.IsDevelopment())
             {
-                
+                app.UseDeveloperExceptionPage();
+                app.UseDatabaseErrorPage();
+            }
+
+            app.UseStaticFiles();
+
+            app.UseMvc(routes =>
+            {
+                routes.MapRoute(
+                    name: "default",
+                    template: "{controller=Home}/{action=Index}/{id?}");
             });
         }
     }
