@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using AutoMapper;
 using Shouldly;
 using Xunit;
@@ -7,14 +8,14 @@ namespace Abp.AutoMapper.Tests
 {
     public class AutoMapping_Tests
     {
-        private static IMapper _mapper;
+        private readonly IMapper _mapper;
 
-        static AutoMapping_Tests()
+        public AutoMapping_Tests()
         {
             var config = new MapperConfiguration(configuration =>
             {
-                configuration.CreateAbpAttributeMaps(typeof(MyClass1));
-                configuration.CreateAbpAttributeMaps(typeof(MyClass2));
+                configuration.CreateAutoAttributeMaps(typeof(MyClass1));
+                configuration.CreateAutoAttributeMaps(typeof(MyClass2));
             });
 
             _mapper = config.CreateMapper();
@@ -62,6 +63,11 @@ namespace Abp.AutoMapper.Tests
             var obj3 = new MyClass3();
             _mapper.Map(obj2, obj3);
             obj3.TestProp.ShouldBe("Test value");
+
+            Assert.ThrowsAny<Exception>(() => //Did not define reverse mapping!
+            {
+                _mapper.Map(obj3, obj2);
+            });
         }
 
         [Fact]
@@ -97,16 +103,36 @@ namespace Abp.AutoMapper.Tests
             obj2.TestProp.ShouldBe(null);
         }
 
+        [Fact]
+        public void Should_Map_Nullable_Value_To_Null_If_It_Is_Null_On_Source()
+        {
+            var obj1 = new MyClass1();
+            var obj2 = _mapper.Map<MyClass2>(obj1);
+            obj2.NullableValue.ShouldBeNull();
+        }
+
+        [Fact]
+        public void Should_Map_Nullable_Value_To__Not_Null_If_It_Is__Not_Null_On_Source()
+        {
+            var obj1 = new MyClass1 { NullableValue = 42 };
+            var obj2 = _mapper.Map<MyClass2>(obj1);
+            obj2.NullableValue.ShouldBe(42);
+        }
+
         [AutoMap(typeof(MyClass2), typeof(MyClass3))]
         private class MyClass1
         {
             public string TestProp { get; set; }
+
+            public long? NullableValue { get; set; }
         }
 
         [AutoMapTo(typeof(MyClass3))]
         private class MyClass2
         {
             public string TestProp { get; set; }
+
+            public long? NullableValue { get; set; }
         }
 
         private class MyClass3
