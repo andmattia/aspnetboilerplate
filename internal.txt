@@ -1,0 +1,6 @@
+git remote add upstream https://github.com/aspnetboilerplate/aspnetboilerplate.git 
+git fetch upstream 
+git checkout dev 
+git merge upstream/dev
+
+DA VS check & Push
