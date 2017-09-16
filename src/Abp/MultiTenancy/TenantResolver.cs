@@ -3,12 +3,15 @@ using System.Linq;
 using Abp.Configuration.Startup;
 using Abp.Dependency;
 using Abp.Runtime;
+using Castle.Core.Logging;
 
 namespace Abp.MultiTenancy
 {
     public class TenantResolver : ITenantResolver, ITransientDependency
     {
         private const string AmbientScopeContextKey = "Abp.MultiTenancy.TenantResolver.Resolving";
+
+        public ILogger Logger { get; set; }
 
         private readonly IMultiTenancyConfig _multiTenancy;
         private readonly IIocResolver _iocResolver;
@@ -28,6 +31,8 @@ namespace Abp.MultiTenancy
             _tenantStore = tenantStore;
             _cache = cache;
             _ambientScopeProvider = ambientScopeProvider;
+
+            Logger = NullLogger.Instance;
         }
 
         public int? ResolveTenantId()
@@ -61,9 +66,20 @@ namespace Abp.MultiTenancy
         {
             foreach (var resolverType in _multiTenancy.Resolvers)
             {
-                using (var resolver = _iocResolver.ResolveAsDisposable<ITenantResolveContributer>(resolverType))
+                using (var resolver = _iocResolver.ResolveAsDisposable<ITenantResolveContributor>(resolverType))
                 {
-                    var tenantId = resolver.Object.ResolveTenantId();
+                    int? tenantId;
+
+                    try
+                    {
+                        tenantId = resolver.Object.ResolveTenantId();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warn(ex.ToString(), ex);
+                        continue;
+                    }
+
                     if (tenantId == null)
                     {
                         continue;

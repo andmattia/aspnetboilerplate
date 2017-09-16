@@ -1,5 +1,4 @@
-﻿using System;
-using Abp.Configuration.Startup;
+﻿using Abp.Configuration.Startup;
 using Abp.MultiTenancy;
 using Abp.Runtime.Remoting;
 
@@ -28,7 +27,10 @@ namespace Abp.Runtime.Session
         public override int? ImpersonatorTenantId => null;
 
         private NullAbpSession() 
-            : base(new MultiTenancyConfig(), new DataContextAmbientScopeProvider<SessionOverride>(new CallContextAmbientDataContext()))
+            : base(
+                  new MultiTenancyConfig(), 
+                  new DataContextAmbientScopeProvider<SessionOverride>(new AsyncLocalAmbientDataContext())
+            )
         {
 
         }
