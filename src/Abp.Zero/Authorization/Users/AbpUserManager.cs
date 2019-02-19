@@ -48,6 +48,8 @@ namespace Abp.Authorization.Users
 
         public ILocalizationManager LocalizationManager { get; }
 
+        protected string LocalizationSourceName { get; set; }
+
         public IAbpSession AbpSession { get; set; }
 
         public FeatureDependencyContext FeatureDependencyContext { get; set; }
@@ -76,7 +78,7 @@ namespace Abp.Authorization.Users
             IRepository<UserOrganizationUnit, long> userOrganizationUnitRepository,
             IOrganizationUnitSettings organizationUnitSettings,
             ILocalizationManager localizationManager,
-            IdentityEmailMessageService emailService, 
+            IdentityEmailMessageService emailService,
             ISettingManager settingManager,
             IUserTokenProviderAccessor userTokenProviderAccessor)
             : base(userStore)
@@ -84,6 +86,7 @@ namespace Abp.Authorization.Users
             AbpStore = userStore;
             RoleManager = roleManager;
             LocalizationManager = localizationManager;
+            LocalizationSourceName = AbpZeroConsts.LocalizationSourceName;
             _settingManager = settingManager;
 
             _permissionManager = permissionManager;
@@ -98,7 +101,7 @@ namespace Abp.Authorization.Users
             UserLockoutEnabledByDefault = true;
             DefaultAccountLockoutTimeSpan = TimeSpan.FromMinutes(5);
             MaxFailedAccessAttemptsBeforeLockout = 5;
-            
+
             EmailService = emailService;
 
             UserTokenProvider = userTokenProviderAccessor.GetUserTokenProviderOrNull<TUser>();
@@ -106,6 +109,8 @@ namespace Abp.Authorization.Users
 
         public override async Task<IdentityResult> CreateAsync(TUser user)
         {
+            user.SetNormalizedNames();
+
             var result = await CheckDuplicateUsernameOrEmailAddressAsync(user.Id, user.UserName, user.EmailAddress);
             if (!result.Succeeded)
             {
@@ -117,6 +122,8 @@ namespace Abp.Authorization.Users
             {
                 user.TenantId = tenantId.Value;
             }
+
+            InitializeLockoutSettings(user.TenantId);
 
             return await base.CreateAsync(user);
         }
@@ -137,19 +144,19 @@ namespace Abp.Authorization.Users
         /// <summary>
         /// Check whether a user is granted for a permission.
         /// </summary>
-        /// <param name="userId">User id</param>
+        /// <param name="user">User</param>
         /// <param name="permission">Permission</param>
-        public virtual async Task<bool> IsGrantedAsync(long userId, Permission permission)
+        public virtual Task<bool> IsGrantedAsync(TUser user, Permission permission)
         {
-            return await IsGrantedAsync(await GetUserByIdAsync(userId), permission);
+            return IsGrantedAsync(user.Id, permission);
         }
 
         /// <summary>
         /// Check whether a user is granted for a permission.
         /// </summary>
-        /// <param name="user">User</param>
+        /// <param name="userId">User id</param>
         /// <param name="permission">Permission</param>
-        public virtual async Task<bool> IsGrantedAsync(TUser user, Permission permission)
+        public virtual async Task<bool> IsGrantedAsync(long userId, Permission permission)
         {
             //Check for multi-tenancy side
             if (!permission.MultiTenancySides.HasFlag(GetCurrentMultiTenancySide()))
@@ -160,16 +167,16 @@ namespace Abp.Authorization.Users
             //Check for depended features
             if (permission.FeatureDependency != null && GetCurrentMultiTenancySide() == MultiTenancySides.Tenant)
             {
-                FeatureDependencyContext.TenantId = user.TenantId;
+                FeatureDependencyContext.TenantId = GetCurrentTenantId();
 
                 if (!await permission.FeatureDependency.IsSatisfiedAsync(FeatureDependencyContext))
                 {
                     return false;
                 }
             }
-            
+
             //Get cached user permissions
-            var cacheItem = await GetUserPermissionCacheItemAsync(user.Id);
+            var cacheItem = await GetUserPermissionCacheItemAsync(userId);
             if (cacheItem == null)
             {
                 return false;
@@ -340,6 +347,8 @@ namespace Abp.Authorization.Users
 
         public async override Task<IdentityResult> UpdateAsync(TUser user)
         {
+            user.SetNormalizedNames();
+
             var result = await CheckDuplicateUsernameOrEmailAddressAsync(user.Id, user.UserName, user.EmailAddress);
             if (!result.Succeeded)
             {
@@ -694,9 +703,14 @@ namespace Abp.Authorization.Users
                 : _settingManager.GetSettingValueForTenant<T>(settingName, tenantId.Value);
         }
 
-        private string L(string name)
+        protected virtual string L(string name)
         {
-            return LocalizationManager.GetString(AbpZeroConsts.LocalizationSourceName, name);
+            return LocalizationManager.GetString(LocalizationSourceName, name);
+        }
+
+        protected virtual string L(string name, CultureInfo cultureInfo)
+        {
+            return LocalizationManager.GetString(LocalizationSourceName, name, cultureInfo);
         }
 
         private int? GetCurrentTenantId()
